@@ -1,7 +1,8 @@
 """Tests for the Roku Media Player platform."""
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+import pytest
 from rokuecp import RokuError
 
 from homeassistant.components.media_player import MediaPlayerDeviceClass
@@ -76,9 +77,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.util import dt as dt_util
 
-from tests.common import async_fire_time_changed
-from tests.components.roku import NAME_ROKUTV, UPNP_SERIAL, setup_integration
-from tests.test_util.aiohttp import AiohttpClientMocker
+from tests.common import MockConfigEntry, async_fire_time_changed
+from tests.components.roku import (
+    MOCK_MEDIA_PAUSED,
+    MOCK_MEDIA_PLAYING,
+    NAME_ROKUTV,
+    UPNP_SERIAL,
+)
 
 MAIN_ENTITY_ID = f"{MP_DOMAIN}.my_roku_3"
 TV_ENTITY_ID = f"{MP_DOMAIN}.58_onn_roku_tv"
@@ -91,10 +96,8 @@ TV_SERIAL = "YN00H5555555"
 TV_SW_VERSION = "9.2.0"
 
 
-async def test_setup(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+async def test_setup(hass: HomeAssistant, init_integration: MockConfigEntry) -> None:
     """Test setup with basic config."""
-    await setup_integration(hass, aioclient_mock)
-
     entity_registry = er.async_get(hass)
     device_registry = dr.async_get(hass)
 
@@ -123,29 +126,25 @@ async def test_setup(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -
 
 
 async def test_idle_setup(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_roku: MagicMock,
 ) -> None:
     """Test setup with idle device."""
-    await setup_integration(hass, aioclient_mock, power=False)
+    mock_roku.update_from_dict({"available": True, "standby": True})
 
     state = hass.states.get(MAIN_ENTITY_ID)
     assert state
     assert state.state == STATE_STANDBY
 
 
+@pytest.mark.parametrize("mock_roku", ["roku/rokutv-7820x.json"], indirect=True)
 async def test_tv_setup(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_roku: MagicMock,
 ) -> None:
     """Test Roku TV setup."""
-    await setup_integration(
-        hass,
-        aioclient_mock,
-        device="rokutv",
-        app="tvinput-dtv",
-        host=TV_HOST,
-        unique_id=TV_SERIAL,
-    )
-
     entity_registry = er.async_get(hass)
     device_registry = dr.async_get(hass)
 
@@ -174,14 +173,18 @@ async def test_tv_setup(
 
 
 async def test_availability(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant,
+    mock_roku: MagicMock,
+    mock_config_entry: MockConfigEntry,
 ) -> None:
     """Test entity availability."""
     now = dt_util.utcnow()
     future = now + timedelta(minutes=1)
 
+    mock_config_entry.add_to_hass(hass)
     with patch("homeassistant.util.dt.utcnow", return_value=now):
-        await setup_integration(hass, aioclient_mock)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
 
     with patch(
         "homeassistant.components.roku.coordinator.Roku.update", side_effect=RokuError
@@ -199,11 +202,11 @@ async def test_availability(
 
 
 async def test_supported_features(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_roku: MagicMock,
 ) -> None:
     """Test supported features."""
-    await setup_integration(hass, aioclient_mock)
-
     # Features supported for Rokus
     state = hass.states.get(MAIN_ENTITY_ID)
     assert (
@@ -222,19 +225,13 @@ async def test_supported_features(
     )
 
 
+@pytest.mark.parametrize("mock_roku", ["roku/rokutv-7820x.json"], indirect=True)
 async def test_tv_supported_features(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_roku: MagicMock,
 ) -> None:
     """Test supported features for Roku TV."""
-    await setup_integration(
-        hass,
-        aioclient_mock,
-        device="rokutv",
-        app="tvinput-dtv",
-        host=TV_HOST,
-        unique_id=TV_SERIAL,
-    )
-
     state = hass.states.get(TV_ENTITY_ID)
     assert (
         SUPPORT_PREVIOUS_TRACK
@@ -253,11 +250,11 @@ async def test_tv_supported_features(
 
 
 async def test_attributes(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_roku: MagicMock,
 ) -> None:
     """Test attributes."""
-    await setup_integration(hass, aioclient_mock)
-
     state = hass.states.get(MAIN_ENTITY_ID)
     assert state.state == STATE_HOME
 
@@ -268,10 +265,23 @@ async def test_attributes(
 
 
 async def test_attributes_app(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_roku: MagicMock,
 ) -> None:
     """Test attributes for app."""
-    await setup_integration(hass, aioclient_mock, app="netflix")
+    mock_roku.update_from_dict(
+        {
+            "available": True,
+            "standby": False,
+            "app": {
+                "@id": "12",
+                "@type": "appl",
+                "@version": "4.1.218",
+                "#text": "Netflix",
+            },
+        }
+    )
 
     state = hass.states.get(MAIN_ENTITY_ID)
     assert state.state == STATE_ON
@@ -283,10 +293,25 @@ async def test_attributes_app(
 
 
 async def test_attributes_app_media_playing(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_roku: MagicMock,
 ) -> None:
     """Test attributes for app with playing media."""
-    await setup_integration(hass, aioclient_mock, app="pluto", media_state="play")
+    mock_roku.update_from_dict(
+        {
+            "available": True,
+            "standby": False,
+            "app": {
+                "@id": "74519",
+                "@subtype": "rsga",
+                "@type": "appl",
+                "@version": "5.2.0",
+                "#text": "Pluto TV - It's Free TV",
+            },
+            "media": MOCK_MEDIA_PLAYING,
+        }
+    )
 
     state = hass.states.get(MAIN_ENTITY_ID)
     assert state.state == STATE_PLAYING
@@ -300,10 +325,25 @@ async def test_attributes_app_media_playing(
 
 
 async def test_attributes_app_media_paused(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_roku: MagicMock,
 ) -> None:
     """Test attributes for app with paused media."""
-    await setup_integration(hass, aioclient_mock, app="pluto", media_state="pause")
+    mock_roku.update_from_dict(
+        {
+            "available": True,
+            "standby": False,
+            "app": {
+                "@id": "74519",
+                "@subtype": "rsga",
+                "@type": "appl",
+                "@version": "5.2.0",
+                "#text": "Pluto TV - It's Free TV",
+            },
+            "media": MOCK_MEDIA_PAUSED,
+        }
+    )
 
     state = hass.states.get(MAIN_ENTITY_ID)
     assert state.state == STATE_PAUSED
@@ -317,10 +357,26 @@ async def test_attributes_app_media_paused(
 
 
 async def test_attributes_screensaver(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_roku: MagicMock,
 ) -> None:
     """Test attributes for app with screensaver."""
-    await setup_integration(hass, aioclient_mock, app="screensaver")
+    mock_roku.update_from_dict(
+        {
+            "available": True,
+            "standby": False,
+            "app": {
+                "app": "Roku",
+                "screensaver": {
+                    "@id": "55545",
+                    "@type": "ssvr",
+                    "@version": "2.0.1",
+                    "#text": "Default screensaver",
+                },
+            },
+        }
+    )
 
     state = hass.states.get(MAIN_ENTITY_ID)
     assert state.state == STATE_IDLE
@@ -331,19 +387,11 @@ async def test_attributes_screensaver(
     assert state.attributes.get(ATTR_INPUT_SOURCE) == "Roku"
 
 
+@pytest.mark.parametrize("mock_roku", ["roku/rokutv-7820x.json"], indirect=True)
 async def test_tv_attributes(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant, init_integration: MockConfigEntry
 ) -> None:
     """Test attributes for Roku TV."""
-    await setup_integration(
-        hass,
-        aioclient_mock,
-        device="rokutv",
-        app="tvinput-dtv",
-        host=TV_HOST,
-        unique_id=TV_SERIAL,
-    )
-
     state = hass.states.get(TV_ENTITY_ID)
     assert state.state == STATE_ON
 
@@ -355,19 +403,11 @@ async def test_tv_attributes(
     assert state.attributes.get(ATTR_MEDIA_TITLE) == "Airwolf"
 
 
+@pytest.mark.parametrize("mock_roku", ["roku/rokutv-7820x.json"], indirect=True)
 async def test_tv_device_registry(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant, init_integration: MockConfigEntry
 ) -> None:
     """Test device registered for Roku TV in the device registry."""
-    await setup_integration(
-        hass,
-        aioclient_mock,
-        device="rokutv",
-        app="tvinput-dtv",
-        host=TV_HOST,
-        unique_id=TV_SERIAL,
-    )
-
     device_registry = dr.async_get(hass)
     reg_device = device_registry.async_get_device(identifiers={(DOMAIN, TV_SERIAL)})
 
@@ -378,12 +418,8 @@ async def test_tv_device_registry(
     assert reg_device.name == NAME_ROKUTV
 
 
-async def test_services(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
-) -> None:
+async def test_services(hass: HomeAssistant, init_integration: MockConfigEntry) -> None:
     """Test the different media player services."""
-    await setup_integration(hass, aioclient_mock)
-
     with patch("homeassistant.components.roku.coordinator.Roku.remote") as remote_mock:
         await hass.services.async_call(
             MP_DOMAIN, SERVICE_TURN_OFF, {ATTR_ENTITY_ID: MAIN_ENTITY_ID}, blocking=True
@@ -560,19 +596,11 @@ async def test_services(
         launch_mock.assert_called_once_with("12")
 
 
+@pytest.mark.parametrize("mock_roku", ["roku/rokutv-7820x.json"], indirect=True)
 async def test_tv_services(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant, init_integration: MockConfigEntry
 ) -> None:
     """Test the media player services related to Roku TV."""
-    await setup_integration(
-        hass,
-        aioclient_mock,
-        device="rokutv",
-        app="tvinput-dtv",
-        host=TV_HOST,
-        unique_id=TV_SERIAL,
-    )
-
     with patch("homeassistant.components.roku.coordinator.Roku.remote") as remote_mock:
         await hass.services.async_call(
             MP_DOMAIN, SERVICE_VOLUME_UP, {ATTR_ENTITY_ID: TV_ENTITY_ID}, blocking=True
@@ -615,17 +643,8 @@ async def test_tv_services(
         tune_mock.assert_called_once_with("55")
 
 
-async def test_media_browse(hass, aioclient_mock, hass_ws_client):
+async def test_media_browse(hass, init_integration, hass_ws_client):
     """Test browsing media."""
-    await setup_integration(
-        hass,
-        aioclient_mock,
-        device="rokutv",
-        app="tvinput-dtv",
-        host=TV_HOST,
-        unique_id=TV_SERIAL,
-    )
-
     client = await hass_ws_client(hass)
 
     await client.send_json(
@@ -741,7 +760,7 @@ async def test_media_browse(hass, aioclient_mock, hass_ws_client):
     assert not msg["success"]
 
 
-async def test_media_browse_internal(hass, aioclient_mock, hass_ws_client):
+async def test_media_browse_internal(hass, init_integration, hass_ws_client):
     """Test browsing media with internal url."""
     await async_process_ha_core_config(
         hass,
@@ -749,15 +768,6 @@ async def test_media_browse_internal(hass, aioclient_mock, hass_ws_client):
     )
 
     assert hass.config.internal_url == "http://example.local:8123"
-
-    await setup_integration(
-        hass,
-        aioclient_mock,
-        device="rokutv",
-        app="tvinput-dtv",
-        host=TV_HOST,
-        unique_id=TV_SERIAL,
-    )
 
     client = await hass_ws_client(hass)
 
@@ -804,11 +814,9 @@ async def test_media_browse_internal(hass, aioclient_mock, hass_ws_client):
 
 
 async def test_integration_services(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+    hass: HomeAssistant, init_integration: MockConfigEntry
 ) -> None:
     """Test integration services."""
-    await setup_integration(hass, aioclient_mock)
-
     with patch("homeassistant.components.roku.coordinator.Roku.search") as search_mock:
         await hass.services.async_call(
             DOMAIN,

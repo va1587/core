@@ -1,0 +1,39 @@
+{
+  "@error": "false",
+  "@state": "pause",
+  "plugin": 
+  {
+    "@bandwidth": "10000000 bps",
+    "@id": "74519",
+    "@name": "Pluto TV - It's Free TV"
+  },
+  "format": 
+  {
+    "@audio": "aac_adts",
+    "@captions": "webvtt",
+    "@container": "hls",
+    "@drm": "none",
+    "@video": "mpeg4_10b"
+  },
+  "buffering": 
+  {
+    "@current": "1000",
+    "@max": "1000",
+    "@target": "0"
+  },
+  "new_stream": 
+  {
+    "@speed": "128000 bps"
+  },
+  "position": "313813 ms",
+  "duration": "6496762 ms",
+  "is_live": "false",
+  "runtime": "15000 ms",
+  "stream_segment": 
+  {
+    "@bitrate": "3063648",
+    "@media_sequence": "61",
+    "@segment_type": "mux",
+    "@time": "310013"
+  }
+}
