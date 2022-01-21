@@ -79,6 +79,8 @@ async def async_browse_media(
     hass: HomeAssistant, media_content_id: str
 ) -> models.BrowseMediaSource:
     """Return media player browse media results."""
+    if DOMAIN not in hass.data:
+        raise BrowseError("Media Source not loaded")
     return await _get_media_item(hass, media_content_id).async_browse()
 
 
@@ -87,6 +89,8 @@ async def async_resolve_media(
     hass: HomeAssistant, media_content_id: str
 ) -> models.PlayMedia:
     """Get info to play media."""
+    if DOMAIN not in hass.data:
+        raise Unresolvable("Media Source not loaded")
     return await _get_media_item(hass, media_content_id).async_resolve()
 
 
