@@ -43,7 +43,9 @@ def mock_roku_config_flow(
         fixture = request.param
 
     device = RokuDevice(json.loads(load_fixture(fixture)))
-    with patch("homeassistant.components.roku.config_flow.Roku") as roku_mock:
+    with patch(
+        "homeassistant.components.roku.config_flow.Roku", autospec=True
+    ) as roku_mock:
         client = roku_mock.return_value
         client.app_icon_url.return_value = APP_ICON_URL
         client.update.return_value = device
@@ -58,7 +60,9 @@ def mock_roku(request: pytest.FixtureRequest) -> Generator[None, MagicMock, None
         fixture = request.param
 
     device = RokuDevice(json.loads(load_fixture(fixture)))
-    with patch("homeassistant.components.roku.coordinator.Roku") as roku_mock:
+    with patch(
+        "homeassistant.components.roku.coordinator.Roku", autospec=True
+    ) as roku_mock:
         client = roku_mock.return_value
         client.app_icon_url.return_value = APP_ICON_URL
         client.update.return_value = device
