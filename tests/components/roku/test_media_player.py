@@ -250,12 +250,11 @@ async def test_tv_supported_features(
 
 
 async def test_attributes(
-    hass: HomeAssistant,
-    init_integration: MockConfigEntry,
-    mock_roku: MagicMock,
+    hass: HomeAssistant, init_integration: MockConfigEntry
 ) -> None:
     """Test attributes."""
     state = hass.states.get(MAIN_ENTITY_ID)
+    assert state
     assert state.state == STATE_HOME
 
     assert state.attributes.get(ATTR_MEDIA_CONTENT_TYPE) is None
@@ -284,6 +283,7 @@ async def test_attributes_app(
     )
 
     state = hass.states.get(MAIN_ENTITY_ID)
+    assert state
     assert state.state == STATE_ON
 
     assert state.attributes.get(ATTR_MEDIA_CONTENT_TYPE) == MEDIA_TYPE_APP
@@ -314,6 +314,7 @@ async def test_attributes_app_media_playing(
     )
 
     state = hass.states.get(MAIN_ENTITY_ID)
+    assert state
     assert state.state == STATE_PLAYING
 
     assert state.attributes.get(ATTR_MEDIA_CONTENT_TYPE) == MEDIA_TYPE_APP
@@ -346,6 +347,7 @@ async def test_attributes_app_media_paused(
     )
 
     state = hass.states.get(MAIN_ENTITY_ID)
+    assert state
     assert state.state == STATE_PAUSED
 
     assert state.attributes.get(ATTR_MEDIA_CONTENT_TYPE) == MEDIA_TYPE_APP
@@ -379,6 +381,7 @@ async def test_attributes_screensaver(
     )
 
     state = hass.states.get(MAIN_ENTITY_ID)
+    assert state
     assert state.state == STATE_IDLE
 
     assert state.attributes.get(ATTR_MEDIA_CONTENT_TYPE) is None
@@ -393,6 +396,7 @@ async def test_tv_attributes(
 ) -> None:
     """Test attributes for Roku TV."""
     state = hass.states.get(TV_ENTITY_ID)
+    assert state
     assert state.state == STATE_ON
 
     assert state.attributes.get(ATTR_APP_ID) == "tvinput.dtv"
@@ -411,6 +415,7 @@ async def test_tv_device_registry(
     device_registry = dr.async_get(hass)
     reg_device = device_registry.async_get_device(identifiers={(DOMAIN, TV_SERIAL)})
 
+    assert reg_device
     assert reg_device.model == TV_MODEL
     assert reg_device.sw_version == TV_SW_VERSION
     assert reg_device.manufacturer == TV_MANUFACTURER
