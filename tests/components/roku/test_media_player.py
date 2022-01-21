@@ -3,7 +3,7 @@ from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from rokuecp import RokuError
+from rokuecp import Device as RokuDevice, RokuError
 
 from homeassistant.components.media_player import MediaPlayerDeviceClass
 from homeassistant.components.media_player.const import (
@@ -131,7 +131,8 @@ async def test_idle_setup(
     mock_roku: MagicMock,
 ) -> None:
     """Test setup with idle device."""
-    mock_roku.update_from_dict({"available": True, "standby": True})
+    device: RokuDevice = mock_roku.device.return_value
+    device.update_from_dict({"available": True, "standby": True})
 
     state = hass.states.get(MAIN_ENTITY_ID)
     assert state
@@ -233,6 +234,7 @@ async def test_tv_supported_features(
 ) -> None:
     """Test supported features for Roku TV."""
     state = hass.states.get(TV_ENTITY_ID)
+    assert state
     assert (
         SUPPORT_PREVIOUS_TRACK
         | SUPPORT_NEXT_TRACK
@@ -269,7 +271,8 @@ async def test_attributes_app(
     mock_roku: MagicMock,
 ) -> None:
     """Test attributes for app."""
-    mock_roku.update_from_dict(
+    device: RokuDevice = mock_roku.device.return_value
+    device.update_from_dict(
         {
             "available": True,
             "standby": False,
@@ -298,7 +301,8 @@ async def test_attributes_app_media_playing(
     mock_roku: MagicMock,
 ) -> None:
     """Test attributes for app with playing media."""
-    mock_roku.update_from_dict(
+    device: RokuDevice = mock_roku.device.return_value
+    device.update_from_dict(
         {
             "available": True,
             "standby": False,
@@ -331,7 +335,8 @@ async def test_attributes_app_media_paused(
     mock_roku: MagicMock,
 ) -> None:
     """Test attributes for app with paused media."""
-    mock_roku.update_from_dict(
+    device: RokuDevice = mock_roku.device.return_value
+    device.update_from_dict(
         {
             "available": True,
             "standby": False,
@@ -364,7 +369,8 @@ async def test_attributes_screensaver(
     mock_roku: MagicMock,
 ) -> None:
     """Test attributes for app with screensaver."""
-    mock_roku.update_from_dict(
+    device: RokuDevice = mock_roku.device.return_value
+    device.update_from_dict(
         {
             "available": True,
             "standby": False,
